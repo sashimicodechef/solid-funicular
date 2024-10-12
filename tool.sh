@@ -366,6 +366,14 @@ verb 3" > /etc/openvpn/server/client-common.txt
 	echo "New clients can be added by running this script again."
 	
 else
+	# File where trusted MAC addresses are stored
+	MAC_FILE="/etc/openvpn/trusted_macs.txt"
+
+	# Create MAC file if not exists
+	if [ ! -f "$MAC_FILE" ]; then
+		touch "$MAC_FILE"
+	fi
+
 	clear
 	echo "OpenVPN is already installed."
 	echo
