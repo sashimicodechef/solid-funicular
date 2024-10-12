@@ -63,7 +63,7 @@ if [[ ! -e /etc/openvpn/server/server.conf ]]; then
 	else
 		number_of_ip=$(ip -4 addr | grep inet | grep -vEc '127(\.[0-9]{1,3}){3}')
 		echo
-		echo "Which IPv4 address should be used?"
+		echo "Specify the internal IP. Option 1 unless using custom network configuration. "
 		ip -4 addr | grep inet | grep -vE '127(\.[0-9]{1,3}){3}' | cut -d '/' -f 1 | grep -oE '[0-9]{1,3}(\.[0-9]{1,3}){3}' | nl -s ') '
 		read -p "IPv4 address [1]: " ip_number
 		until [[ -z "$ip_number" || "$ip_number" =~ ^[0-9]+$ && "$ip_number" -le "$number_of_ip" ]]; do
@@ -76,7 +76,7 @@ if [[ ! -e /etc/openvpn/server/server.conf ]]; then
 	# If $ip is a private IP address, the server must be behind NAT
 	if echo "$ip" | grep -qE '^(10\.|172\.1[6789]\.|172\.2[0-9]\.|172\.3[01]\.|192\.168)'; then
 		echo
-		echo "What is the public IPv4? (the elastic IP)"
+		echo "What is the public IPv4? (the associated elastic IP)"
 		# Get public IP and sanitize with grep
 		get_public_ip=$(grep -m 1 -oE '^[0-9]{1,3}(\.[0-9]{1,3}){3}$' <<< "$(wget -T 10 -t 1 -4qO- "http://ip1.dynupdate.no-ip.com/" || curl -m 10 -4Ls "http://ip1.dynupdate.no-ip.com/")")
 		read -p "Public IPv4 address [$get_public_ip]: " public_ip
@@ -106,7 +106,7 @@ if [[ ! -e /etc/openvpn/server/server.conf ]]; then
 	esac
 	echo
 	echo
-	echo "What port should OpenVPN listen to? (Recommended: 443 for better security and compatibility)"
+	echo "What port should OpenVPN listen to? (Recommended: 443 for security through obscurity and compatibility)"
 	echo "Using port 443 can help avoid firewall restrictions since it’s commonly open for HTTPS traffic."
 	read -p "Port [443]: " port
 	until [[ -z "$port" || "$port" =~ ^[0-9]+$ && "$port" -le 65535 ]]; do
@@ -351,12 +351,20 @@ verb 3" > /etc/openvpn/server/client-common.txt
 	# Enable and start the OpenVPN service
 	systemctl enable --now openvpn-server@server.service
 	# Generates the custom client.ovpn
+	# File where trusted MAC addresses are stored
+	MAC_FILE="/etc/openvpn/trusted_macs.txt"
+
+	# Create MAC file if not exists
+	if [ ! -f "$MAC_FILE" ]; then
+		touch "$MAC_FILE"
+	fi
 	new_client
 	echo
 	echo "Finished!"
 	echo
 	echo "The client configuration is available in:" ~/"$client.ovpn"
 	echo "New clients can be added by running this script again."
+	
 else
 	clear
 	echo "OpenVPN is already installed."
@@ -373,15 +381,21 @@ else
 	done
 	case "$option" in
 		1)
-			echo
-			echo "Provide a name for the client:"
-			read -p "Name: " unsanitized_client
+			read -p "Name [client]: " unsanitized_client
 			client=$(sed 's/[^0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_-]/_/g' <<< "$unsanitized_client")
-			while [[ -z "$client" || -e /etc/openvpn/server/easy-rsa/pki/issued/"$client".crt ]]; do
-				echo "$client: invalid name."
-				read -p "Name: " unsanitized_client
-				client=$(sed 's/[^0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_-]/_/g' <<< "$unsanitized_client")
-			done
+			[[ -z "$client" ]] && client="client"
+			
+			read -p "Enter MAC address for the client: " client_mac
+
+			# Validate MAC address format
+			if [[ ! "$client_mac" =~ ^([0-9A-Fa-f]{2}[:]){5}([0-9A-Fa-f]{2})$ ]]; then
+				echo "Invalid MAC address format."
+				exit 1
+			fi
+
+			# Add client and MAC to file
+			echo "$client $client_mac" >> "$MAC_FILE"
+
 			cd /etc/openvpn/server/easy-rsa/
 			./easyrsa --batch --days=3650 build-client-full "$client" nopass
 			# Generates the custom client.ovpn
@@ -391,45 +405,35 @@ else
 			exit
 		;;
 		2)
+			# List clients
 			number_of_clients=$(tail -n +2 /etc/openvpn/server/easy-rsa/pki/index.txt | grep -c "^V")
 			if [[ "$number_of_clients" = 0 ]]; then
-				echo
 				echo "There are no existing clients!"
 				exit
 			fi
-			echo
-			echo "Select the client to revoke:"
+
 			tail -n +2 /etc/openvpn/server/easy-rsa/pki/index.txt | grep "^V" | cut -d '=' -f 2 | nl -s ') '
-			read -p "Client: " client_number
-			until [[ "$client_number" =~ ^[0-9]+$ && "$client_number" -le "$number_of_clients" ]]; do
-				echo "$client_number: invalid selection."
-				read -p "Client: " client_number
-			done
+			read -p "Client to revoke: " client_number
 			client=$(tail -n +2 /etc/openvpn/server/easy-rsa/pki/index.txt | grep "^V" | cut -d '=' -f 2 | sed -n "$client_number"p)
-			echo
-			read -p "Confirm $client revocation? [y/N]: " revoke
-			until [[ "$revoke" =~ ^[yYnN]*$ ]]; do
-				echo "$revoke: invalid selection."
-				read -p "Confirm $client revocation? [y/N]: " revoke
-			done
+			
+			read -p "Confirm revocation of $client? [y/N]: " revoke
 			if [[ "$revoke" =~ ^[yY]$ ]]; then
 				cd /etc/openvpn/server/easy-rsa/
 				./easyrsa --batch revoke "$client"
 				./easyrsa --batch --days=3650 gen-crl
 				rm -f /etc/openvpn/server/crl.pem
 				cp /etc/openvpn/server/easy-rsa/pki/crl.pem /etc/openvpn/server/crl.pem
-				# CRL is read with each client connection, when OpenVPN is dropped to nobody
 				chown nobody:"$group_name" /etc/openvpn/server/crl.pem
-				echo
-				echo "$client revoked!"
+
+				# Remove MAC address
+				sed -i "/^$client /d" "$MAC_FILE"
+				echo "Client $client and associated MAC address revoked!"
 			else
-				echo
-				echo "$client revocation aborted!"
+				echo "Revocation aborted!"
 			fi
 			exit
 		;;
 		3)
-			echo
 			read -p "Confirm OpenVPN removal? [y/N]: " remove
 			until [[ "$remove" =~ ^[yYnN]*$ ]]; do
 				echo "$remove: invalid selection."
