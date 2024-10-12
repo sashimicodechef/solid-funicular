@@ -56,6 +56,13 @@ new_client () {
 
 if [[ ! -e /etc/openvpn/server/server.conf ]]; then
 	clear
+	# File where trusted MAC addresses are stored
+	MAC_FILE="/etc/openvpn/trusted_macs.txt"
+
+	# Create MAC file if not exists
+	if [ ! -f "$MAC_FILE" ]; then
+		touch "$MAC_FILE"
+	fi	
 	echo 'OpenVPN Config Tool'
 	# If system has a single IPv4, it is selected automatically. Else, ask the user
 	if [[ $(ip -4 addr | grep inet | grep -vEc '127(\.[0-9]{1,3}){3}') -eq 1 ]]; then
@@ -129,11 +136,18 @@ if [[ ! -e /etc/openvpn/server/server.conf ]]; then
 	done
 	[[ -z "$dns" ]] && dns="1"
 	echo
-	echo "Enter a name for the first client:"
-	read -p "Name [client]: " unsanitized_client
-	# Allow a limited set of characters to avoid conflicts
-	client=$(sed 's/[^0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_-]/_/g' <<< "$unsanitized_client")
-	[[ -z "$client" ]] && client="client"
+    echo "Enter a name for the first client:"
+    read -p "Name [client]: " unsanitized_client
+    client=$(sed 's/[^0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_-]/_/g' <<< "$unsanitized_client")
+    [[ -z "$client" ]] && client="client"
+    
+    read -p "Enter MAC address for the client: " client_mac
+    if [[ ! "$client_mac" =~ ^([0-9A-Fa-f]{2}[:]){5}([0-9A-Fa-f]{2})$ ]]; then
+        echo "Invalid MAC address format."
+        exit 1
+    fi
+
+    echo "$client $client_mac" >> "$MAC_FILE"
 	echo
 	echo "OpenVPN installation is ready to begin."
 	# Install a firewall if firewalld or iptables are not already available
