@@ -25,9 +25,9 @@ echo "Updating ClamAV definitions..."
 
 # Configure ClamAV to delete infected files automatically
 echo "Configuring ClamAV to delete infected files automatically..."
-sudo sed -i 's/#Remove/Infected/Remove/Infected/' /etc/clamav/clamd.conf
-sudo sed -i 's/#Remove/Infected/Remove/Infected/' /etc/clamav/freshclam.conf
-sudo sed -i 's/#Remove/Infected/Remove/Infected/' /etc/clamav/scan.conf
+sudo sed -i 's/^#Remove/Infected/Remove/Infected/' /etc/clamav/clamd.conf
+sudo sed -i 's/^#Remove/Infected/Remove/Infected/' /etc/clamav/freshclam.conf
+sudo sed -i 's/^#Remove/Infected/Remove/Infected/' /etc/clamav/scan.conf
 
 # Start ClamAV services
 echo "Starting ClamAV services..."
@@ -35,7 +35,7 @@ echo "Starting ClamAV services..."
 
 # Add a ClamAV daily scan job to the crontab for ubuntu user
 echo "Setting up a daily ClamAV scan job for ubuntu user..."
-(sudo crontab -u ubuntu -l 2>/dev/null; echo '0 2 * * * /usr/bin/clamscan -r /') | sudo crontab -u ubuntu -
+(sudo crontab -u ubuntu -l 2>/dev/null; echo '0 2 * * * /usr/bin/clamscan -r / --remove') | sudo crontab -u ubuntu -
 
 clear
 echo "Installation and configuration completed."
