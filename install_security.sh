@@ -36,5 +36,5 @@ sudo systemctl start clamav-daemon || echo "ClamAV service start error."
 # Add a ClamAV daily scan job to the crontab for ubuntu user
 echo "Setting up a daily ClamAV scan job for ubuntu user..."
 (sudo crontab -u ubuntu -l; echo '0 2 * * * /usr/bin/clamscan -r / --remove') | sudo crontab -u ubuntu -
-
+clear
 echo "Installation and configuration completed."
