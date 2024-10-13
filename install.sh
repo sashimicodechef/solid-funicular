@@ -425,6 +425,7 @@ else
 			new_client
 			echo
 			echo "$client added. Configuration available in:" ~/"$client.ovpn"
+   			mv /root/$client.ovpn /home/ubuntu/
 			exit
 		;;
 		2)
