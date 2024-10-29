@@ -142,11 +142,13 @@ if [[ ! -e /etc/openvpn/server/server.conf ]]; then
     client=$(sed 's/[^0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_-]/_/g' <<< "$unsanitized_client")
     [[ -z "$client" ]] && client="client"
     
+    
     read -p "Enter MAC address for the client: " client_mac
-    if [[ ! "$client_mac" =~ ^([0-9A-Fa-f]{2}[:]){5}([0-9A-Fa-f]{2})$ ]]; then
-        echo "Invalid MAC address format."
-        exit 1
+    if [[ ! "$client_mac" =~ ^([0-9A-Fa-f]{2}[:\-]){5}([0-9A-Fa-f]{2})$ ]]; then
+    	echo "Invalid MAC address format."
+    	exit 1
     fi
+
 
     echo "$client $client_mac" >> "$MAC_FILE"
 	echo
@@ -412,9 +414,9 @@ else
 			read -p "Enter MAC address for the client: " client_mac
 
 			# Validate MAC address format
-			if [[ ! "$client_mac" =~ ^([0-9A-Fa-f]{2}[:]){5}([0-9A-Fa-f]{2})$ ]]; then
-				echo "Invalid MAC address format."
-				exit 1
+			if [[ ! "$client_mac" =~ ^([0-9A-Fa-f]{2}[:\-]){5}([0-9A-Fa-f]{2})$ ]]; then
+    				echo "Invalid MAC address format."
+    				exit 1
 			fi
 
 			# Add client and MAC to file
