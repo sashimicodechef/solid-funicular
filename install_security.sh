@@ -91,7 +91,8 @@ install_services() {
     sudo systemctl restart snort
     sudo systemctl restart clamav-daemon
     sudo systemctl restart ossec-hids
-
+    clear
+    clear
     echo "Installation and configuration complete. SNORT, ClamAV, and OSSEC are now in active detection and prevention mode, and logs are being stored in /home/ubuntu/logs."
 }
 
