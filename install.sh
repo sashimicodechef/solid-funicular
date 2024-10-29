@@ -379,8 +379,8 @@ verb 3" > /etc/openvpn/server/client-common.txt
 	echo
 	echo "Finished!"
 	echo
-	echo "The client configuration is available in:" /home/ubuntu"$client.ovpn"
- 	mv /root/$client.ovpn /home/ubuntu/
+	echo "The client configuration is available in:" /home/ubuntu/clients/"$client.ovpn"
+ 	mv /root/$client.ovpn /home/ubuntu/clients
 	echo "New clients can be added by running this script again."
 	
 else
@@ -427,8 +427,8 @@ else
 			# Generates the custom client.ovpn
 			new_client
 			echo
-			echo "$client added. Configuration available in:" ~/"$client.ovpn"
-   			mv /root/$client.ovpn /home/ubuntu/
+			echo "$client added. Configuration available in:" home/ubuntu/clients/"$client.ovpn"
+   			mv /root/$client.ovpn /home/ubuntu/clients
 			exit
 		;;
 		2)
